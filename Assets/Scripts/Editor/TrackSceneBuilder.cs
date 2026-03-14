@@ -257,7 +257,7 @@ namespace Cycling.Editor
             BuildUI(motor, riderGO.GetComponent<Cycling.GearSystem>(), posTracker);
 
             // === Trees ===
-            BuildEnvironment();
+            BuildEnvironment(container);
 
             // Save scene
             EditorSceneManager.SaveScene(scene, "Assets/Scenes/GrandCircuit.unity");
@@ -547,50 +547,152 @@ namespace Cycling.Editor
             mf.mesh = mesh;
         }
 
-        static void BuildEnvironment()
+        static void BuildEnvironment(SplineContainer container)
         {
             var envGO = new GameObject("Environment");
 
-            var treeMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TreeFoliage.mat");
-            var trunkMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TreeTrunk.mat");
+            // Load URP tree prefabs
+            string[] treeFolders = { "Ash", "Birch", "Chestnut", "Spruce", "Weeping Willow" };
+            var treePrefabs = new System.Collections.Generic.List<GameObject>();
 
-            if (treeMat == null || trunkMat == null) return;
+            foreach (var folder in treeFolders)
+            {
+                var guids = AssetDatabase.FindAssets("t:Prefab", new[] { $"Assets/Realistic Tree/Prefabs/URP/{folder}" });
+                foreach (var guid in guids)
+                {
+                    var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(guid));
+                    if (prefab != null)
+                        treePrefabs.Add(prefab);
+                }
+            }
 
-            // Scatter trees around but not on the road
+            if (treePrefabs.Count == 0)
+            {
+                Debug.LogWarning("[BuildEnvironment] No tree prefabs found in Realistic Tree/Prefabs/URP/");
+                return;
+            }
+
+            // Pre-sample spline for terrain height
+            int splineSamples = 500;
+            var splinePoints = new Vector3[splineSamples];
+            for (int s = 0; s < splineSamples; s++)
+            {
+                float t = s / (float)splineSamples;
+                container.Evaluate(t, out Unity.Mathematics.float3 sp, out _, out _);
+                splinePoints[s] = (Vector3)sp;
+            }
+
             var rng = new System.Random(42);
-            int treeCount = 60;
+            int placed = 0;
 
-            for (int i = 0; i < treeCount; i++)
+            // Pass 1: Dense tree line along the road (8-40m from road, both sides)
+            for (int s = 0; s < splineSamples; s += 2) // every ~3.5m along the track
+            {
+                Vector3 sp = splinePoints[s];
+                // Get approximate road direction
+                Vector3 next = splinePoints[(s + 1) % splineSamples];
+                Vector3 fwd = (next - sp).normalized;
+                Vector3 right = Vector3.Cross(fwd, Vector3.up).normalized;
+
+                // Place trees on both sides
+                foreach (float side in new[] { -1f, 1f })
+                {
+                    // 1-3 trees per side at this point
+                    int count = rng.Next(1, 4);
+                    for (int t = 0; t < count; t++)
+                    {
+                        float dist = 8f + (float)rng.NextDouble() * 32f; // 8-40m from center
+                        float along = ((float)rng.NextDouble() - 0.5f) * 5f; // jitter along track
+
+                        float x = sp.x + right.x * dist * side + fwd.x * along;
+                        float z = sp.z + right.z * dist * side + fwd.z * along;
+
+                        // Get terrain height at this position
+                        float bestDist2 = float.MaxValue;
+                        float bestY = 0f;
+                        for (int ss = 0; ss < splineSamples; ss++)
+                        {
+                            float dx = x - splinePoints[ss].x;
+                            float dz = z - splinePoints[ss].z;
+                            float d2 = dx * dx + dz * dz;
+                            if (d2 < bestDist2)
+                            {
+                                bestDist2 = d2;
+                                bestY = splinePoints[ss].y;
+                            }
+                        }
+                        float distFromRoad = Mathf.Sqrt(bestDist2);
+                        if (distFromRoad < 7f) continue;
+
+                        float roadEdge = 6f;
+                        float blendDist = 80f;
+                        float y;
+                        if (distFromRoad < roadEdge)
+                            y = bestY - 0.3f;
+                        else
+                        {
+                            float blend = Mathf.Clamp01((distFromRoad - roadEdge) / blendDist);
+                            y = Mathf.Lerp(bestY - 0.3f, -0.5f, blend);
+                        }
+
+                        var prefab = treePrefabs[rng.Next(treePrefabs.Count)];
+                        var tree = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+                        tree.name = $"Tree_{placed}";
+                        tree.transform.SetParent(envGO.transform);
+                        tree.transform.position = new Vector3(x, y, z);
+                        tree.transform.rotation = Quaternion.Euler(0, (float)rng.NextDouble() * 360f, 0);
+
+                        // Trees near the road are slightly smaller, further out are bigger
+                        float scaleBase = Mathf.Lerp(0.5f, 1.2f, Mathf.InverseLerp(8f, 40f, distFromRoad));
+                        float scaleVar = scaleBase * (0.8f + (float)rng.NextDouble() * 0.4f);
+                        tree.transform.localScale = Vector3.one * scaleVar;
+                        tree.isStatic = true;
+                        placed++;
+                    }
+                }
+            }
+
+            // Pass 2: Scatter some distant background trees
+            for (int i = 0; i < 40; i++)
             {
                 float angle = (float)rng.NextDouble() * 360f;
-                float radius = 80f + (float)rng.NextDouble() * 200f;
+                float radius = 50f + (float)rng.NextDouble() * 200f;
                 float rad = angle * Mathf.Deg2Rad;
                 float x = Mathf.Cos(rad) * radius;
                 float z = Mathf.Sin(rad) * radius;
 
-                var tree = new GameObject($"Tree_{i}");
+                float bestDist2 = float.MaxValue;
+                float bestY = 0f;
+                for (int s = 0; s < splineSamples; s++)
+                {
+                    float dx = x - splinePoints[s].x;
+                    float dz = z - splinePoints[s].z;
+                    float d2 = dx * dx + dz * dz;
+                    if (d2 < bestDist2)
+                    {
+                        bestDist2 = d2;
+                        bestY = splinePoints[s].y;
+                    }
+                }
+                float distFromRoad = Mathf.Sqrt(bestDist2);
+                if (distFromRoad < 7f) continue;
+
+                float blendAmt = Mathf.Clamp01((distFromRoad - 6f) / 80f);
+                float y = Mathf.Lerp(bestY - 0.3f, -0.5f, blendAmt);
+
+                var prefab = treePrefabs[rng.Next(treePrefabs.Count)];
+                var tree = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+                tree.name = $"Tree_{placed}";
                 tree.transform.SetParent(envGO.transform);
-                tree.transform.position = new Vector3(x, 0, z);
-
-                var trunk = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                trunk.name = "Trunk";
-                trunk.transform.SetParent(tree.transform, false);
-                trunk.transform.localPosition = new Vector3(0, 2f, 0);
-                trunk.transform.localScale = new Vector3(0.3f, 2f, 0.3f);
-                trunk.GetComponent<MeshRenderer>().material = trunkMat;
-                Object.DestroyImmediate(trunk.GetComponent<Collider>());
-
-                var foliage = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                foliage.name = "Foliage";
-                foliage.transform.SetParent(tree.transform, false);
-                foliage.transform.localPosition = new Vector3(0, 5f, 0);
-                foliage.transform.localScale = new Vector3(3f, 3.5f, 3f);
-                foliage.GetComponent<MeshRenderer>().material = treeMat;
-                Object.DestroyImmediate(foliage.GetComponent<Collider>());
-
-                float scaleVar = 0.7f + (float)rng.NextDouble() * 0.6f;
+                tree.transform.position = new Vector3(x, y, z);
+                tree.transform.rotation = Quaternion.Euler(0, (float)rng.NextDouble() * 360f, 0);
+                float scaleVar = 0.8f + (float)rng.NextDouble() * 0.6f;
                 tree.transform.localScale = Vector3.one * scaleVar;
+                tree.isStatic = true;
+                placed++;
             }
+
+            Debug.Log($"[BuildEnvironment] Placed {placed} trees from {treePrefabs.Count} prefab variants.");
         }
 
         static void BuildUI(Cycling.RiderMotor motor, Cycling.GearSystem gearSystem, Race.PositionTracker posTracker)
