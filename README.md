@@ -24,7 +24,13 @@ Single-player cycling racing game where you ride against AI opponents on custom-
    - Download and Import
    - Asset Store link: https://assetstore.unity.com/packages/templates/systems/easy-bike-system-316532
 
-4. **Open `Assets/Scenes/MainMenu.unity`** and hit Play
+4. **Download HDR sky textures** (excluded from git due to size)
+   - Download the following from [Poly Haven](https://polyhaven.com/) or your preferred source:
+     - `HdrSkyMorning004_HDR_8K.exr` — morning sky HDRI
+     - `HdrOutdoorFieldDayOvercast004_HDR_8K.exr` — overcast sky HDRI (optional)
+   - Place them in `Assets/Textures/Sky/`
+
+5. **Open `Assets/Scenes/MainMenu.unity`** and hit Play
 
 ## Controls
 
