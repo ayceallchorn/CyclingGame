@@ -104,16 +104,26 @@ namespace Cycling.Editor
             BuildTerrain(container);
 
             // === Start/Finish Line ===
-            var sfGO = new GameObject("StartFinishLine");
-            sfGO.AddComponent<Track.StartFinishLine>();
-            var sfSO = new SerializedObject(sfGO.GetComponent<Track.StartFinishLine>());
-            sfSO.FindProperty("trackSpline").objectReferenceValue = trackGO.GetComponent<Track.TrackSpline>();
-            sfSO.FindProperty("lineWidth").floatValue = 10f;
-            sfSO.ApplyModifiedProperties();
-            // Position will be set at runtime by StartFinishLine, but let's set it now too
             var ts = trackGO.GetComponent<Track.TrackSpline>();
-            // Can't call Evaluate before Awake, so position manually at spline start
-            sfGO.transform.position = new Vector3(0, 0.15f, -width);
+            float sfRoadWidth = 10f;
+            float sfArchHeight = 5f;
+            var sfGO = new GameObject("StartFinishLine");
+            var sfComp = sfGO.AddComponent<Track.StartFinishLine>();
+            var sfSO = new SerializedObject(sfComp);
+            sfSO.FindProperty("trackSpline").objectReferenceValue = ts;
+            sfSO.FindProperty("roadWidth").floatValue = sfRoadWidth;
+            sfSO.ApplyModifiedProperties();
+
+            // Position at spline start
+            container.Evaluate(0f, out Unity.Mathematics.float3 sfPos, out Unity.Mathematics.float3 sfTan, out Unity.Mathematics.float3 sfUp);
+            sfGO.transform.position = (Vector3)sfPos;
+            if (Unity.Mathematics.math.lengthsq(sfTan) > 0.0001f)
+            {
+                Vector3 fwd = Unity.Mathematics.math.normalize(sfTan);
+                sfGO.transform.rotation = Quaternion.LookRotation(fwd, Vector3.up);
+            }
+
+            BuildStartFinishVisuals(sfGO.transform, sfRoadWidth, sfArchHeight);
 
             // === Player Rider ===
             var riderGO = GameObject.CreatePrimitive(PrimitiveType.Capsule);
@@ -123,7 +133,7 @@ namespace Cycling.Editor
             var motor = riderGO.AddComponent<Cycling.RiderMotor>();
             var motorSO = new SerializedObject(motor);
             motorSO.FindProperty("trackSpline").objectReferenceValue = ts;
-            motorSO.FindProperty("verticalOffset").floatValue = 1.3f;
+            motorSO.FindProperty("verticalOffset").floatValue = 1.7f;
             motorSO.ApplyModifiedProperties();
 
             riderGO.AddComponent<Cycling.GearSystem>();
@@ -272,6 +282,153 @@ namespace Cycling.Editor
             AssetDatabase.SaveAssets();
 
             Debug.Log($"Grand Circuit scene built: {trackDef.length:F0}m track with hill. Saved to Assets/Scenes/GrandCircuit.unity");
+        }
+
+        static void BuildStartFinishVisuals(Transform parent, float roadWidth, float archHeight)
+        {
+            float hw = roadWidth * 0.5f;
+            float archThickness = 0.3f;
+
+            // --- Ground markings ---
+            // Two white lines
+            for (int i = 0; i < 2; i++)
+            {
+                var lineGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                lineGO.name = i == 0 ? "StartLine" : "FinishLine";
+                lineGO.transform.SetParent(parent, false);
+                lineGO.transform.localPosition = new Vector3(0, 0.12f, i == 0 ? -0.6f : 0.6f);
+                lineGO.transform.localRotation = Quaternion.Euler(90, 0, 0);
+                lineGO.transform.localScale = new Vector3(roadWidth, 0.3f, 1f);
+                Object.DestroyImmediate(lineGO.GetComponent<Collider>());
+                var lineMat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+                lineMat.color = Color.white;
+                lineGO.GetComponent<MeshRenderer>().material = lineMat;
+            }
+
+            // Checkerboard strip between lines
+            var checkerGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            checkerGO.name = "CheckerStrip";
+            checkerGO.transform.SetParent(parent, false);
+            checkerGO.transform.localPosition = new Vector3(0, 0.11f, 0);
+            checkerGO.transform.localRotation = Quaternion.Euler(90, 0, 0);
+            checkerGO.transform.localScale = new Vector3(roadWidth, 1f, 1f);
+            Object.DestroyImmediate(checkerGO.GetComponent<Collider>());
+
+            int checks = 16;
+            var tex = new Texture2D(checks, 2, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Point;
+            tex.wrapMode = TextureWrapMode.Repeat;
+            for (int x = 0; x < checks; x++)
+                for (int y = 0; y < 2; y++)
+                    tex.SetPixel(x, y, (x + y) % 2 == 0 ? Color.white : new Color(0.1f, 0.1f, 0.1f));
+            tex.Apply();
+            var checkerMat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            checkerMat.mainTexture = tex;
+            checkerGO.GetComponent<MeshRenderer>().material = checkerMat;
+
+            // --- Arch ---
+            var archGO = new GameObject("Arch");
+            archGO.transform.SetParent(parent, false);
+
+            // Pillars
+            var pillarMat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            pillarMat.color = new Color(0.2f, 0.2f, 0.25f);
+
+            var leftPillar = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            leftPillar.name = "LeftPillar";
+            leftPillar.transform.SetParent(archGO.transform, false);
+            leftPillar.transform.localPosition = new Vector3(-hw - 0.5f, archHeight * 0.5f, 0);
+            leftPillar.transform.localScale = new Vector3(archThickness, archHeight, archThickness);
+            Object.DestroyImmediate(leftPillar.GetComponent<Collider>());
+            leftPillar.GetComponent<MeshRenderer>().material = pillarMat;
+
+            var rightPillar = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            rightPillar.name = "RightPillar";
+            rightPillar.transform.SetParent(archGO.transform, false);
+            rightPillar.transform.localPosition = new Vector3(hw + 0.5f, archHeight * 0.5f, 0);
+            rightPillar.transform.localScale = new Vector3(archThickness, archHeight, archThickness);
+            Object.DestroyImmediate(rightPillar.GetComponent<Collider>());
+            rightPillar.GetComponent<MeshRenderer>().material = pillarMat;
+
+            var topBeam = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            topBeam.name = "TopBeam";
+            topBeam.transform.SetParent(archGO.transform, false);
+            topBeam.transform.localPosition = new Vector3(0, archHeight, 0);
+            topBeam.transform.localScale = new Vector3(roadWidth + 1.5f, archThickness * 2f, archThickness);
+            Object.DestroyImmediate(topBeam.GetComponent<Collider>());
+            topBeam.GetComponent<MeshRenderer>().material = pillarMat;
+
+            // Banner (translucent checkerboard)
+            int bw = 16, bh = 4;
+            var bannerTex = new Texture2D(bw, bh, TextureFormat.RGBA32, false);
+            bannerTex.filterMode = FilterMode.Point;
+            for (int x = 0; x < bw; x++)
+                for (int y = 0; y < bh; y++)
+                    bannerTex.SetPixel(x, y, (x + y) % 2 == 0
+                        ? new Color(1f, 1f, 1f, 0.7f)
+                        : new Color(0.1f, 0.1f, 0.1f, 0.7f));
+            bannerTex.Apply();
+
+            var bannerMat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            bannerMat.mainTexture = bannerTex;
+            bannerMat.SetFloat("_Surface", 1);
+            bannerMat.SetFloat("_Blend", 0);
+            bannerMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            bannerMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            bannerMat.SetInt("_ZWrite", 0);
+            bannerMat.renderQueue = 3000;
+            bannerMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            bannerMat.SetColor("_BaseColor", new Color(1, 1, 1, 0.7f));
+
+            foreach (float yaw in new[] { 0f, 180f })
+            {
+                var bannerGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                bannerGO.name = yaw == 0f ? "BannerFront" : "BannerBack";
+                bannerGO.transform.SetParent(archGO.transform, false);
+                bannerGO.transform.localPosition = new Vector3(0, archHeight - 1f, 0);
+                bannerGO.transform.localRotation = Quaternion.Euler(0, yaw, 0);
+                bannerGO.transform.localScale = new Vector3(roadWidth + 1f, 1.5f, 1f);
+                Object.DestroyImmediate(bannerGO.GetComponent<Collider>());
+                bannerGO.GetComponent<MeshRenderer>().material = bannerMat;
+            }
+
+            // --- Particle burst (for runtime crossing effect) ---
+            var particleGO = new GameObject("CrossingBurst");
+            particleGO.transform.SetParent(parent, false);
+            particleGO.transform.localPosition = new Vector3(0, 2f, 0);
+
+            var ps = particleGO.AddComponent<ParticleSystem>();
+            var main = ps.main;
+            main.duration = 0.5f;
+            main.loop = false;
+            main.startLifetime = 1.5f;
+            main.startSpeed = 8f;
+            main.startSize = 0.15f;
+            main.maxParticles = 100;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.playOnAwake = false;
+
+            var col = ps.colorOverLifetime;
+            col.enabled = true;
+            var grad = new Gradient();
+            grad.SetKeys(
+                new GradientColorKey[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new GradientAlphaKey[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0f, 1f) });
+            col.color = grad;
+
+            var emission = ps.emission;
+            emission.rateOverTime = 0;
+            emission.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, 60) });
+
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.scale = new Vector3(roadWidth, 0.5f, 0.5f);
+
+            var pr = particleGO.GetComponent<ParticleSystemRenderer>();
+            pr.material = new Material(Shader.Find("Particles/Standard Unlit"));
+            pr.material.color = Color.white;
+
+            ps.Stop();
         }
 
         static void BuildTerrain(SplineContainer container)
