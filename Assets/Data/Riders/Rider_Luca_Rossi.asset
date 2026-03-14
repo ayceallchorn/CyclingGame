@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 527dd1201b9974165ab05e66a7640395, type: 3}
+  m_Name: Rider_Luca_Rossi
+  m_EditorClassIdentifier: Assembly-CSharp::Cycling.Data.RiderData
+  riderName: Luca Rossi
+  team: {fileID: 11400000, guid: f5a7bcc06163a416da0a5398c03e1a1d, type: 2}
+  ftp: 308.31125
+  weight: 72.87894
