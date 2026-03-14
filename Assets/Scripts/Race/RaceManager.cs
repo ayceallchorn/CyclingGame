@@ -190,7 +190,9 @@ namespace Cycling.Race
                     riderWeight = aiRiderDataList[i].weight;
                 }
 
-                motor.Init(trackSpline, riderWeight + bikeMass, riderCdA, riderCrr);
+                // Match player's vertical offset so AI rides at the same height
+                float yOffset = playerMotor != null ? playerMotor.VerticalOffset : 1f;
+                motor.Init(trackSpline, riderWeight + bikeMass, riderCdA, riderCrr, yOffset);
 
                 var lap = go.AddComponent<LapTracker>();
                 lap.Init(totalLaps);

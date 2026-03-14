@@ -62,3 +62,6 @@ Thumbs.db
 # Screenshots (generated at runtime)
 Assets/Screenshots/
 Assets/Screenshots.meta
+
+# Large HDR sky textures (download separately)
+*.exr

@@ -18,7 +18,8 @@ namespace Cycling.Cycling
         [SerializeField] float powerWatts = 200f;
 
         [Header("Positioning")]
-        [SerializeField] float verticalOffset = 4.1f; // above road tube + bike clearance
+        [SerializeField] float verticalOffset = 4.1f;
+        public float VerticalOffset { get => verticalOffset; set => verticalOffset = value; }
         [SerializeField] float lateralOffsetMax = 1.5f;
         [SerializeField] float lateralLerpSpeed = 3f;
 
@@ -45,12 +46,13 @@ namespace Cycling.Cycling
         /// </summary>
         public float TargetLateralOffset { get => _targetLateralOffset; set => _targetLateralOffset = Mathf.Clamp(value, -lateralOffsetMax, lateralOffsetMax); }
 
-        public void Init(TrackSpline spline, float mass, float dragCdA, float rollingCrr)
+        public void Init(TrackSpline spline, float mass, float dragCdA, float rollingCrr, float yOffset = -1f)
         {
             trackSpline = spline;
             massKg = mass;
             cdA = dragCdA;
             crr = rollingCrr;
+            if (yOffset >= 0f) VerticalOffset = yOffset;
         }
 
         void Start()
@@ -82,7 +84,7 @@ namespace Cycling.Cycling
             trackSpline.Evaluate(distanceAlongSpline, out Vector3 pos, out Quaternion rot);
 
             // Lift rider above road surface
-            pos += rot * Vector3.up * verticalOffset;
+            pos += rot * Vector3.up * VerticalOffset;
 
             // Apply lateral offset perpendicular to track direction
             if (Mathf.Abs(currentLateralOffset) > 0.01f)

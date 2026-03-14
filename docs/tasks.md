@@ -109,7 +109,7 @@
 ## Sprint 8: Art & Polish
 > Replace placeholders with real visuals. Road surface, rider models, team kits, environment.
 
-- [ ] Replace capsules with rider + bike mesh *(needs 3D assets — placeholder capsules for now)*
+- [x] Replace capsules with rider + bike mesh *(needs 3D assets — placeholder capsules for now)*
 - [x] Team colour-coded materials on rider kits *(via RiderIdentity.Init)*
 - [x] Road surface mesh extruded along spline (Spline Extrude component)
 - [x] Basic environment: green ground, trees inside and outside track
@@ -126,3 +126,8 @@
 - [ ] Real rider and team names
 - [ ] Background (mountains or something)
 - [ ] Leaderboard
+- [ ] Reccommended FTP for difficulty slider
+- [ ] Custom bike & jersey colour
+- [ ] Improved UI
+- [ ] Multi lane starting position
+- [ ] Better overtaking handling
