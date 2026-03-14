@@ -80,15 +80,13 @@ namespace Cycling.UI
                 if (difficultyLabel != null)
                     difficultyLabel.text = $"Difficulty: {gm.difficulty * 100f:F0}%";
             }
-        }
 
-        void OnEnable()
-        {
+            // Subscribe to input (in Start so InputManager.Instance is ready)
             if (InputManager.Instance != null)
                 InputManager.Instance.OnToggleDebug += TogglePanel;
         }
 
-        void OnDisable()
+        void OnDestroy()
         {
             if (InputManager.Instance != null)
                 InputManager.Instance.OnToggleDebug -= TogglePanel;

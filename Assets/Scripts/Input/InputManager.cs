@@ -6,14 +6,6 @@ namespace Cycling.Input
 {
     public class InputManager : MonoBehaviour
     {
-        [SerializeField] InputActionAsset actionAsset;
-
-        InputActionMap _gameplay;
-        InputAction _shiftUp;
-        InputAction _shiftDown;
-        InputAction _toggleDebug;
-        InputAction _pause;
-
         public event Action OnShiftUp;
         public event Action OnShiftDown;
         public event Action OnToggleDebug;
@@ -29,26 +21,22 @@ namespace Cycling.Input
                 return;
             }
             Instance = this;
-
-            _gameplay = actionAsset.FindActionMap("Gameplay");
-            _shiftUp = _gameplay.FindAction("ShiftUp");
-            _shiftDown = _gameplay.FindAction("ShiftDown");
-            _toggleDebug = _gameplay.FindAction("ToggleDebug");
-            _pause = _gameplay.FindAction("Pause");
         }
 
-        void OnEnable()
+        void Update()
         {
-            _gameplay.Enable();
-            _shiftUp.performed += ctx => OnShiftUp?.Invoke();
-            _shiftDown.performed += ctx => OnShiftDown?.Invoke();
-            _toggleDebug.performed += ctx => OnToggleDebug?.Invoke();
-            _pause.performed += ctx => OnPause?.Invoke();
+            var kb = Keyboard.current;
+            if (kb == null) return;
+
+            if (kb.eKey.wasPressedThisFrame) OnShiftUp?.Invoke();
+            if (kb.qKey.wasPressedThisFrame) OnShiftDown?.Invoke();
+            if (kb.backquoteKey.wasPressedThisFrame) OnToggleDebug?.Invoke(); // ` key
+            if (kb.escapeKey.wasPressedThisFrame) OnPause?.Invoke();
         }
 
-        void OnDisable()
+        void OnDestroy()
         {
-            _gameplay.Disable();
+            if (Instance == this) Instance = null;
         }
     }
 }

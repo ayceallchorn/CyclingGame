@@ -37,7 +37,7 @@ namespace Cycling.Cycling
             }
         }
 
-        void OnEnable()
+        void Start()
         {
             if (InputManager.Instance != null)
             {
@@ -46,7 +46,7 @@ namespace Cycling.Cycling
             }
         }
 
-        void OnDisable()
+        void OnDestroy()
         {
             if (InputManager.Instance != null)
             {

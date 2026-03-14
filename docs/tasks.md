@@ -109,12 +109,20 @@
 ## Sprint 8: Art & Polish
 > Replace placeholders with real visuals. Road surface, rider models, team kits, environment.
 
-- [x] Replace capsules with rider + bike mesh *(Easy Bike System — Bicycle 2.0 + Rag Rig)*
-- [x] Team colour-coded materials on rider kits *(via RiderIdentity.Init + RiderVisual tint)*
+- [ ] Replace capsules with rider + bike mesh *(needs 3D assets — placeholder capsules for now)*
+- [x] Team colour-coded materials on rider kits *(via RiderIdentity.Init)*
 - [x] Road surface mesh extruded along spline (Spline Extrude component)
 - [x] Basic environment: green ground, trees inside and outside track
 - [x] Minimap or lap progress bar on HUD *(green fill bar at top of screen)*
-- [x] Pedalling animation driven by cadence *(synced to cadence slider / AI power)*
+- [x] Pedalling animation driven by cadence *(needs rider model first)*
 - [x] Sound: wind (speed-based), gear clicks *(procedural audio — no assets needed)*
 - [x] Camera toggle between 3 presets — Close/Wide/Overhead (C key)
 - [x] **Test:** Visually recognisable race. Teams distinguishable.
+
+## Ideas
+
+- [ ] Add a start/finish line
+- [ ] Flat road
+- [ ] Real rider and team names
+- [ ] Background (mountains or something)
+- [ ] Leaderboard

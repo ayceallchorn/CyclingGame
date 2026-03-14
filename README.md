@@ -33,7 +33,7 @@ Single-player cycling racing game where you ride against AI opponents on custom-
 | E | Shift gear up |
 | Q | Shift gear down |
 | C | Toggle camera (Close / Wide / Overhead) |
-| F1 | Toggle debug panel |
+| ` (backtick) | Toggle debug panel |
 | Escape | Pause |
 
 ## Debug Panel (F1)

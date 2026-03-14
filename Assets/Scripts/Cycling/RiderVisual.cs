@@ -104,16 +104,14 @@ namespace Cycling.Cycling
                     DestroyImmediate(mb);
             }
 
-            // Now safe to remove physics
+            // Remove physics: colliders first (WheelCollider depends on Rigidbody),
+            // then joints, then rigidbodies
+            foreach (var col in go.GetComponentsInChildren<Collider>(true))
+                DestroyImmediate(col);
             foreach (var joint in go.GetComponentsInChildren<Joint>(true))
                 DestroyImmediate(joint);
             foreach (var rb in go.GetComponentsInChildren<Rigidbody>(true))
-            {
-                rb.isKinematic = true;
                 DestroyImmediate(rb);
-            }
-            foreach (var col in go.GetComponentsInChildren<Collider>(true))
-                Destroy(col);
         }
 
         void ApplyTeamColour(Color color)
