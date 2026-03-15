@@ -27,6 +27,14 @@ namespace Cycling.Race
         }
 
         public int TotalRiders => _riders.Count;
+        public IReadOnlyList<RiderMotor> SortedRiders => _sorted;
+
+        public float GetEffectiveDistance(RiderMotor rider)
+        {
+            if (trackSpline == null) return 0f;
+            var lap = rider.GetComponent<LapTracker>();
+            return (lap != null ? lap.CurrentLap : 0) * trackSpline.TotalLength + rider.DistanceAlongSpline;
+        }
 
         void Update()
         {
@@ -35,17 +43,8 @@ namespace Cycling.Race
             _sorted.Clear();
             _sorted.AddRange(_riders);
 
-            float trackLen = trackSpline.TotalLength;
-
-            // Sort by effective distance (laps * trackLength + distance)
-            _sorted.Sort((a, b) =>
-            {
-                var lapA = a.GetComponent<LapTracker>();
-                var lapB = b.GetComponent<LapTracker>();
-                float effA = (lapA != null ? lapA.CurrentLap : 0) * trackLen + a.DistanceAlongSpline;
-                float effB = (lapB != null ? lapB.CurrentLap : 0) * trackLen + b.DistanceAlongSpline;
-                return effB.CompareTo(effA); // descending — leader first
-            });
+            // Sort by effective distance — leader first
+            _sorted.Sort((a, b) => GetEffectiveDistance(b).CompareTo(GetEffectiveDistance(a)));
 
             if (_positionIds == null || _positionIds.Length != _sorted.Count)
                 _positionIds = new int[_sorted.Count];
