@@ -62,8 +62,8 @@ namespace Cycling.Cycling
             _isPlayer = identity != null && identity.IsPlayer;
 
             // Apply team colour after RiderIdentity.Init has run
-            if (identity != null && identity.Team != null)
-                ApplyTeamColour(identity.Team.primaryColor);
+            if (identity != null)
+                ApplyTeamColour(identity.TeamColor);
         }
 
         void Update()

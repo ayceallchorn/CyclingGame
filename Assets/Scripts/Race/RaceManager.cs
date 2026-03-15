@@ -6,6 +6,7 @@ using Cycling.Cycling;
 using Cycling.Data;
 using Cycling.AI;
 using Cycling.Track;
+using Cycling.UI;
 
 namespace Cycling.Race
 {
@@ -187,23 +188,25 @@ namespace Cycling.Race
             if (trackSpline == null) return;
 
             int columns = 5;
-            float rowSpacing = 3.5f;     // distance between rows along track
-            float lateralSpacing = 1.8f; // distance between riders in a column
-            float startOffset = 5f;      // first row behind player
+            float rowSpacing = 3.5f;
+            float lateralSpacing = 1.8f;
+            float startOffset = 5f;
 
             var strategies = GenerateStrategies();
 
-            int count = Mathf.Min(aiRiderCount, aiRiderDataList != null ? aiRiderDataList.Length : aiRiderCount);
+            // Load rider database and select weighted riders
+            RiderDatabase.Load();
+            var selectedRiders = RiderDatabase.SelectWeighted(aiRiderCount, 3);
+            int count = selectedRiders.Count;
 
             // Build grid slots, skipping the player's slot
-            int totalSlots = count + 1; // player + AI
-            var gridOrder = new System.Collections.Generic.List<int>();
+            int totalSlots = count + 1;
+            var gridOrder = new List<int>();
             for (int i = 0; i < totalSlots; i++)
             {
                 if (i != _playerGridSlot)
                     gridOrder.Add(i);
             }
-            // Shuffle AI grid positions
             for (int i = gridOrder.Count - 1; i > 0; i--)
             {
                 int j = Random.Range(0, i + 1);
@@ -212,43 +215,37 @@ namespace Cycling.Race
 
             for (int i = 0; i < count; i++)
             {
+                var riderEntry = selectedRiders[i];
+                var teamEntry = RiderDatabase.GetTeam(riderEntry.team);
+
                 var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-                go.name = $"AI Rider {i + 1}";
+                go.name = riderEntry.name;
 
-                int gridPos = gridOrder[i];
-                int col = gridPos % columns;           // 0-4 across the road
-                int row = gridPos / columns;           // 0-3 back from start
+                int gridPos = i < gridOrder.Count ? gridOrder[i] : i;
+                int col = gridPos % columns;
+                int row = gridPos / columns;
 
-                // Position along spline: each row further back
                 float dist = trackSpline.TotalLength - startOffset - (row * rowSpacing);
                 dist = trackSpline.WrapDistance(dist);
                 trackSpline.Evaluate(dist, out Vector3 pos, out Quaternion rot);
 
-                // Lateral offset: 5 columns spread across the road
                 float lateralOffset = (col - (columns - 1) * 0.5f) * lateralSpacing;
                 Vector3 right = rot * Vector3.right;
                 pos += right * lateralOffset;
-
                 go.transform.SetPositionAndRotation(pos, rot);
 
                 var motor = go.AddComponent<RiderMotor>();
                 float bikeMass = defaultBike != null ? defaultBike.mass : 8f;
-                float riderWeight = 72f;
+                float riderWeight = riderEntry.weight;
                 float riderCdA = defaultBike != null ? defaultBike.cdA : Constants.DefaultCdA;
                 float riderCrr = defaultBike != null ? defaultBike.crr : Constants.DefaultCrr;
 
                 var identity = go.AddComponent<RiderIdentity>();
-                if (aiRiderDataList != null && i < aiRiderDataList.Length && aiRiderDataList[i] != null)
-                {
-                    identity.Init(aiRiderDataList[i], false);
-                    riderWeight = aiRiderDataList[i].weight;
-                }
+                identity.InitFromJson(riderEntry, false);
 
-                // Match player's vertical offset so AI rides at the same height
                 float yOffset = playerMotor != null ? playerMotor.VerticalOffset : 1.3f;
                 motor.Init(trackSpline, riderWeight + bikeMass, riderCdA, riderCrr, yOffset);
 
-                // Set starting grid position
                 motor.DistanceAlongSpline = dist;
                 motor.GridLateralOffset = lateralOffset;
 
@@ -259,12 +256,18 @@ namespace Cycling.Race
                 brain.Init(i < strategies.Length ? strategies[i] : defaultStrategy);
                 _aiBrains.Add(brain);
 
-                // Add visual model
+                // Visual model
                 if (riderVisualPrefab != null)
                 {
                     RiderVisual.SharedVisualPrefab = riderVisualPrefab;
                     go.AddComponent<RiderVisual>();
                 }
+
+                // Nametag
+                Color teamColor = teamEntry != null ? RiderDatabase.ParseColor(teamEntry.primaryColor) : Color.grey;
+                var nametagGO = new GameObject($"Nametag_{riderEntry.name}");
+                var nametag = nametagGO.AddComponent<RiderNametag>();
+                nametag.Init(go.transform, riderEntry.name, teamColor);
 
                 _spawnedRiders.Add(go);
             }

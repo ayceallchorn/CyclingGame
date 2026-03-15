@@ -37,6 +37,7 @@ namespace Cycling.UI
             {
                 powerSlider.minValue = 0f;
                 powerSlider.maxValue = 500f;
+                powerSlider.wholeNumbers = true;
                 powerSlider.value = 200f;
                 powerSlider.onValueChanged.AddListener(OnPowerChanged);
             }
@@ -45,6 +46,7 @@ namespace Cycling.UI
             {
                 cadenceSlider.minValue = 0f;
                 cadenceSlider.maxValue = 150f;
+                cadenceSlider.wholeNumbers = true;
                 cadenceSlider.value = 90f;
                 cadenceSlider.onValueChanged.AddListener(OnCadenceChanged);
             }
@@ -53,6 +55,7 @@ namespace Cycling.UI
             {
                 hrSlider.minValue = 60f;
                 hrSlider.maxValue = 200f;
+                hrSlider.wholeNumbers = true;
                 hrSlider.value = 130f;
                 hrSlider.onValueChanged.AddListener(OnHRChanged);
             }
@@ -61,6 +64,7 @@ namespace Cycling.UI
             {
                 difficultySlider.minValue = 0f;
                 difficultySlider.maxValue = 100f;
+                difficultySlider.wholeNumbers = true;
                 difficultySlider.value = 50f;
                 difficultySlider.onValueChanged.AddListener(OnDifficultyChanged);
             }
@@ -98,8 +102,15 @@ namespace Cycling.UI
                 panel.SetActive(!panel.activeSelf);
         }
 
+        static float Snap(float value, float step)
+        {
+            return Mathf.Round(value / step) * step;
+        }
+
         void OnPowerChanged(float value)
         {
+            value = Snap(value, 50f);
+            if (powerSlider != null) powerSlider.SetValueWithoutNotify(value);
             if (riderMotor != null)
                 riderMotor.PowerWatts = value;
             if (powerLabel != null)
@@ -108,6 +119,8 @@ namespace Cycling.UI
 
         void OnCadenceChanged(float value)
         {
+            value = Snap(value, 10f);
+            if (cadenceSlider != null) cadenceSlider.SetValueWithoutNotify(value);
             SimulatedCadence = value;
             if (cadenceLabel != null)
                 cadenceLabel.text = $"Cadence: {value:F0} rpm";
@@ -115,6 +128,8 @@ namespace Cycling.UI
 
         void OnHRChanged(float value)
         {
+            value = Snap(value, 10f);
+            if (hrSlider != null) hrSlider.SetValueWithoutNotify(value);
             SimulatedHR = value;
             if (hrLabel != null)
                 hrLabel.text = $"HR: {value:F0} bpm";
@@ -122,6 +137,8 @@ namespace Cycling.UI
 
         void OnDifficultyChanged(float value)
         {
+            value = Snap(value, 5f);
+            if (difficultySlider != null) difficultySlider.SetValueWithoutNotify(value);
             if (raceManager != null)
                 raceManager.Difficulty = value / 100f;
             if (difficultyLabel != null)
