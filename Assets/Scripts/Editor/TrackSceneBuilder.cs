@@ -133,7 +133,7 @@ namespace Cycling.Editor
             var motor = riderGO.AddComponent<Cycling.RiderMotor>();
             var motorSO = new SerializedObject(motor);
             motorSO.FindProperty("trackSpline").objectReferenceValue = ts;
-            motorSO.FindProperty("verticalOffset").floatValue = 1.7f;
+            motorSO.FindProperty("verticalOffset").floatValue = 1.3f;
             motorSO.ApplyModifiedProperties();
 
             riderGO.AddComponent<Cycling.GearSystem>();

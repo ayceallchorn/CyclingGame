@@ -18,9 +18,9 @@ namespace Cycling.Cycling
         [SerializeField] float powerWatts = 200f;
 
         [Header("Positioning")]
-        [SerializeField] float verticalOffset = 4.1f;
+        [SerializeField] float verticalOffset = 1.3f;
         public float VerticalOffset { get => verticalOffset; set => verticalOffset = value; }
-        [SerializeField] float lateralOffsetMax = 1.5f;
+        [SerializeField] float lateralOffsetMax = 4f;
         [SerializeField] float lateralLerpSpeed = 3f;
 
         [Header("State (Read Only)")]
@@ -31,13 +31,21 @@ namespace Cycling.Cycling
         [SerializeField] float currentLateralOffset;
 
         float _targetLateralOffset;
+        float _gridLateralOffset;
+        float _gridMergeTimer;
+
+        /// <summary>
+        /// Starting grid lateral offset. Gradually merges to 0 after race starts.
+        /// </summary>
+        public float GridLateralOffset { get => _gridLateralOffset; set => _gridLateralOffset = value; }
 
         public float SpeedMs => currentSpeedMs;
         public float SpeedKmh => currentSpeedMs * 3.6f;
-        public float DistanceAlongSpline => distanceAlongSpline;
+        public float DistanceAlongSpline { get => distanceAlongSpline; set => distanceAlongSpline = value; }
         public float Gradient => currentGradient;
         public float PowerWatts { get => powerWatts; set => powerWatts = value; }
         public float TrackLength => trackSpline != null ? trackSpline.TotalLength : 0f;
+        public bool Frozen { get; set; }
         public TrackSpline TrackSpline => trackSpline;
         public float DraftFactor { get => currentDraftFactor; set => currentDraftFactor = value; }
 
@@ -58,6 +66,8 @@ namespace Cycling.Cycling
         void Start()
         {
             currentSpeedMs = 2f;
+            // Initialise lateral offset to grid position so no snap on first frame
+            currentLateralOffset = _gridLateralOffset;
         }
 
         void FixedUpdate()
@@ -66,19 +76,31 @@ namespace Cycling.Cycling
 
             currentGradient = trackSpline.GetGradient(distanceAlongSpline);
 
-            float effectiveCdA = cdA * (1f - currentDraftFactor);
+            if (!Frozen)
+            {
+                float effectiveCdA = cdA * (1f - currentDraftFactor);
 
-            float acceleration = CyclingPhysics.CalculateAcceleration(
-                powerWatts, currentSpeedMs, currentGradient, massKg, effectiveCdA, crr);
+                float acceleration = CyclingPhysics.CalculateAcceleration(
+                    powerWatts, currentSpeedMs, currentGradient, massKg, effectiveCdA, crr);
 
-            currentSpeedMs += acceleration * Time.fixedDeltaTime;
-            currentSpeedMs = Mathf.Clamp(currentSpeedMs, Constants.MinSpeed, Constants.MaxSpeed);
+                currentSpeedMs += acceleration * Time.fixedDeltaTime;
+                currentSpeedMs = Mathf.Clamp(currentSpeedMs, Constants.MinSpeed, Constants.MaxSpeed);
 
-            distanceAlongSpline += currentSpeedMs * Time.fixedDeltaTime;
-            distanceAlongSpline = trackSpline.WrapDistance(distanceAlongSpline);
+                distanceAlongSpline += currentSpeedMs * Time.fixedDeltaTime;
+                distanceAlongSpline = trackSpline.WrapDistance(distanceAlongSpline);
 
-            // Smooth lateral offset
-            currentLateralOffset = Mathf.Lerp(currentLateralOffset, _targetLateralOffset,
+                // Merge grid offset to 0 gradually after race starts
+                if (Mathf.Abs(_gridLateralOffset) > 0.01f)
+                {
+                    _gridMergeTimer += Time.fixedDeltaTime;
+                    if (_gridMergeTimer > 3f)
+                        _gridLateralOffset = Mathf.MoveTowards(_gridLateralOffset, 0f, 0.4f * Time.fixedDeltaTime);
+                }
+            }
+
+            // Always position on spline (even when frozen, for correct height)
+            float totalTarget = _targetLateralOffset + _gridLateralOffset;
+            currentLateralOffset = Mathf.Lerp(currentLateralOffset, totalTarget,
                 lateralLerpSpeed * Time.fixedDeltaTime);
 
             trackSpline.Evaluate(distanceAlongSpline, out Vector3 pos, out Quaternion rot);
